@@ -1,0 +1,11 @@
+{
+    "projects": [
+      {
+        "name": "Multimodal RAG",
+        "path": "/Users/gilou/Projects/JewelRAG",
+        "launch_commands": "cd frontend && npm run dev, , sleep 2 && open http://localhost:5173/apps/jewelrag/, cd backend && . venv/bin/activate && python3 rag_server.py",
+        "last_notes": "Front end works, need to ingest images from Met",
+        "killing_notes": "Use \"lsof -ti :5173 | xargs kill -9\""
+      }
+    ]
+  }

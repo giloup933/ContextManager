@@ -1,12 +1,18 @@
+mod ui;
+
 use chrono::Local;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fs;
-use std::io;
+//use std::io;
 use std::process::{Command, Stdio};
 use std::path::Path;
 use std::fs::OpenOptions;
 use std::io::Write;
+
+struct MyApp {
+    projects: Vec<ProjectDisplay>,
+}
 
 fn log_activity(project_name: &str, note: &str) {
     let mut file = OpenOptions::new()
@@ -29,6 +35,14 @@ struct Project {
     path: String,
     launch_commands: String,
     last_notes: String,
+}
+
+struct ProjectDisplay {
+    name: String,
+    path: String,
+    commands: Vec<String>,
+    recent_notes: Vec<String>,
+    last_update: String,
 }
 
 
@@ -57,10 +71,10 @@ struct Config {
     projects: Vec<Project>,
 }
 
-fn wake_up_project(project: &Project, commands: &Vec<String>) {
-    println!("🚀 Waking up: {}", project.name);
-    println!("📝 Last Note: \"{}\"", project.last_notes);
-    println!("---------------------------------------");
+fn launch_project_with_logs(project: &ProjectDisplay) {
+    //println!("🚀 Waking up: {}", project.name);
+    //println!("📝 Last Note: \"{}\"", project.last_notes);
+    //println!("---------------------------------------");
 
     let log_filename = format!("{}.log", project.name.to_lowercase().replace(" ", "_"));
 
@@ -78,7 +92,7 @@ fn wake_up_project(project: &Project, commands: &Vec<String>) {
 
     println!("Streaming logs to {}", log_filename);
 
-    let combined_command = format!("echo '--- Starting in: ' $(pwd) && {}", commands.join(" & "));
+    let combined_command = format!("echo '--- Starting in: ' $(pwd) && {}", project.commands.join(" & "));
 
     log_activity(&project.name, &combined_command);
 
@@ -92,7 +106,7 @@ fn wake_up_project(project: &Project, commands: &Vec<String>) {
         .spawn();
         //.expect("Failed to launch project");
 
-    log_activity(&project.name, &project.last_notes);
+    log_activity(&project.name, &project.recent_notes[0]);
 
     match spawn_outcome {
         Ok(child) => println!("✅ Process started with PID: {}", child.id()),
@@ -100,8 +114,23 @@ fn wake_up_project(project: &Project, commands: &Vec<String>) {
     }
 }
 
+impl MyApp {
+    fn new(projects: Vec<ProjectDisplay>) -> Self {
+        Self {projects }
+    }
+}
+
+impl eframe::App for MyApp {
+    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        eframe::egui::CentralPanel::default().show(ctx, |ui| {
+            // Pass the vector directly to your UI module
+            ui::render_dashboard(ui, self);
+        });
+    }
+}
 
 
+/*
 fn main() {
     // 1. Load the config (Simplified for now: assumes projects.json is in current folder)
     let data = fs::read_to_string("src/config/projects.json")
@@ -134,4 +163,50 @@ fn main() {
         } else {
             println!("Invalid selection. Please restart.");
         }
+}
+*/
+
+fn load_projects_from_json() -> Vec<ProjectDisplay> {
+    let data = fs::read_to_string("src/config/projects.json")
+        .expect("Unable to read projects.json. Does it exist?");
+    
+    let config: Config = serde_json::from_str(&data)
+        .expect("JSON was not well-formatted");
+    
+    config.projects.into_iter().map(|p| {
+        ProjectDisplay {
+            name: p.name,
+            path: p.path,
+            commands: p.launch_commands
+                .split(',')
+                .map(|s: &str| format!("({})", s.to_string()))
+                .collect(),
+            recent_notes: vec![p.last_notes],
+            last_update: Local::now().format("%Y-%m-%d %H:%M").to_string(),
+        }
+    }).collect()
+}
+
+
+fn main() -> eframe::Result<()> {
+    // 1. Load your projects directly
+
+    let options = eframe::NativeOptions {
+        viewport: eframe::egui::ViewportBuilder::default()
+            .with_inner_size([800.0, 600.0])
+            .with_always_on_top(), // ADHD priority
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "Context Manager",
+        options,
+        Box::new(|_cc| {
+            let projects: Vec<ProjectDisplay> = load_projects_from_json();
+            let app = MyApp::new(projects);
+
+            // cast your specific type to the trait object
+            Ok(Box::new(app) as Box<dyn eframe::App>)
+        }),
+    )
 }

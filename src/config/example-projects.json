@@ -1,0 +1,11 @@
+{
+    "projects": [
+      {
+        "name": "My Cool App",
+        "path": "/Users/yourname/path/to/project",
+        "launch_commands": "npm run dev, echo hello",
+        "last_notes": "Finished the auth login, need to style the dashboard."
+      }
+    ]
+  }
+  
